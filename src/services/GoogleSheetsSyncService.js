@@ -4,11 +4,11 @@
 import { aggregateTripData } from '../components/tripAggregator';
 
 // Your API key from Google Cloud Console
-const API_KEY = "AIzaSyCruR0rc0V5S1K5wyAgMf2CwEA4YYh0MDs";
+const API_KEY = process.env.REACT_APP_GOOGLE_SHEETS_API_KEY;
 // Discovery document for the Google Sheets API (v4)
 const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
 // Your Google Sheet ID (from the URL of your sheet)
-const SPREADSHEET_ID = "1fNIVGMxZ6x99YMTQtRciKK-VKOa9O5UsMHl7iLJ3MK8";
+const SPREADSHEET_ID = process.env.SHEET_ID;
 
 // In-memory cache to store the sheet data
 let cachedData = null;

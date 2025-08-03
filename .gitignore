@@ -3,3 +3,6 @@ node_modules/
 
 # production build
 build/
+
+# local env secrets
+.env.local
