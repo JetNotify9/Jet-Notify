@@ -12,9 +12,13 @@ import {
 } from 'firebase/auth';
 
 const AuthService = {
-  // ... existing methods
+  // logs in an existing user
+  login: async (email, password) => {
+    // returns a UserCredential
+    return await signInWithEmailAndPassword(auth, email, password);
+  },
 
-  // Modified signup to accept first and last name
+  // modified signup to accept first and last name
   signup: async (email, password, firstName, lastName) => {
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     await updateProfile(userCredential.user, {
@@ -23,7 +27,12 @@ const AuthService = {
     return userCredential;
   },
 
-  // NEW: Update the current user's displayName (first and last name)
+  // logs out the currently-signed-in user
+  logout: async () => {
+    return await signOut(auth);
+  },
+
+  // updates display name
   updateName: async (firstName, lastName) => {
     if (!auth.currentUser) {
       throw new Error("No user is currently logged in.");
@@ -33,21 +42,25 @@ const AuthService = {
     });
   },
 
+  // updates email address
   updateEmail: async (newEmail) => {
     if (!auth.currentUser) throw new Error("No user is currently logged in.");
     await fbUpdateEmail(auth.currentUser, newEmail);
   },
 
+  // updates password
   updatePassword: async (newPassword) => {
     if (!auth.currentUser) throw new Error("No user is currently logged in.");
     await fbUpdatePassword(auth.currentUser, newPassword);
   },
 
+  // deletes the current user account
   deleteAccount: async () => {
     if (!auth.currentUser) throw new Error("No user is currently logged in.");
     await deleteUser(auth.currentUser);
   },
 
+  // listen for auth state changes
   onAuthStateChanged: (callback) => {
     return onAuthStateChanged(auth, callback);
   },
