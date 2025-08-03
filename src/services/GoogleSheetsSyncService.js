@@ -8,7 +8,7 @@ const API_KEY = process.env.REACT_APP_GOOGLE_SHEETS_API_KEY;
 // Discovery document for the Google Sheets API (v4)
 const DISCOVERY_DOCS = ["https://sheets.googleapis.com/$discovery/rest?version=v4"];
 // Your Google Sheet ID (from the URL of your sheet)
-const SPREADSHEET_ID = process.env.SHEET_ID;
+const SPREADSHEET_ID = process.env.REACT_APP_SHEET_ID;
 
 // In-memory cache to store the sheet data
 let cachedData = null;
