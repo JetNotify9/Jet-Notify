@@ -1,6 +1,6 @@
 {
   "name": "jetnotify",
-  "homepage": "JetNotify.com",
+  "homepage": "https://jetnotify.com",
   "version": "0.1.0",
   "private": true,
   "dependencies": {
