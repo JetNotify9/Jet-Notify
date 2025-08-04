@@ -1,10 +1,10 @@
 {
   "files": {
-    "main.js": "/Jet-Notify/static/js/main.abd961db.js",
-    "index.html": "/Jet-Notify/index.html",
-    "main.abd961db.js.map": "/Jet-Notify/static/js/main.abd961db.js.map"
+    "main.js": "/JetNotify.com/static/js/main.1bb4e52a.js",
+    "index.html": "/JetNotify.com/index.html",
+    "main.1bb4e52a.js.map": "/JetNotify.com/static/js/main.1bb4e52a.js.map"
   },
   "entrypoints": [
-    "static/js/main.abd961db.js"
+    "static/js/main.1bb4e52a.js"
   ]
 }
