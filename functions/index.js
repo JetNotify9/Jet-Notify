@@ -33,7 +33,7 @@ exports.getTrips = functions.https.onCall(async (data, context) => {
 
     const userConfirms = new Set(filteredRows.map(row => row[0]));
     const resultRows = rows.filter(row => userConfirms.has(row[0]));
-    return resultRows;
+    return { trips: resultRows };
 
   } catch (err) {
     console.error("Error reading sheet:", err);
