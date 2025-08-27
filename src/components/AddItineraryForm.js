@@ -1,6 +1,6 @@
 // src/components/AddItineraryForm.js
 import React, { useState } from 'react';
-import { appendTripData, fetchTripsAsObjects } from '../services/GoogleSheetsSyncService';
+import { addTripToSheet, fetchTripsAsObjects } from '../services/GoogleSheetsSyncService';
 
 const AddItineraryForm = ({ onNewTrips }) => {
   // Adjust these to match your Sheet’s columns:
@@ -14,10 +14,10 @@ const AddItineraryForm = ({ onNewTrips }) => {
     const newRow = [confirmation, destination, dateRange /*, other fields if any */];
 
     try {
-      // 1) Append to the Sheet
-      await appendTripData(newRow, 'Sheet1!A1:AB1');
+      // 1) Send to your callable function
+      await addTripToSheet(newRow);
       // 2) Re-fetch all trips and inform parent
-      const updated = await fetchTripsAsObjects('Sheet1!A1:AB1000');
+      const updated = await fetchTripsAsObjects();
       onNewTrips(updated);
       // 3) Clear the form
       setConfirmation('');

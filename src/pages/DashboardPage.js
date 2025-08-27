@@ -1,7 +1,7 @@
 // src/pages/DashboardPage.js
 import React, { useContext, useEffect, useState } from 'react';
 import { AuthContext } from '../contexts/AuthContext';
-import { initGapiClient, startPolling, fetchTripsAsObjects } from '../services/GoogleSheetsSyncService';
+import { fetchTripsAsObjects } from '../services/GoogleSheetsSyncService';
 import TripCard from '../components/TripCard';
 import AddItineraryForm from '../components/AddItineraryForm';
 
@@ -15,21 +15,16 @@ const DashboardPage = () => {
   useEffect(() => {
     if (user) {
       setLoading(true);
-      initGapiClient()
-        .then(() => {
-          startPolling("Sheet1!A1:AB1000"); // Start polling (optional)
-          return fetchTripsAsObjects("Sheet1!A1:AB1000");
-        })
+      fetchTripsAsObjects()
         .then((tripData) => {
           setTrips(tripData);
           setLoading(false);
         })
         .catch((err) => {
-          console.error("Error fetching trip data:", err);
-          setError("Failed to load trip data. Please try again later.");
+          console.error("Error loading trips:", err);
           setLoading(false);
         });
-    }
+    }    
   }, [user]);
 
   return (
