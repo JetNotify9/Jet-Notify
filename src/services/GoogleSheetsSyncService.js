@@ -33,7 +33,7 @@ export const addTrip = async (tripData) => {
     throw new Error('Trip data is required to add a trip.');
   }
 
-  const addTripFn = httpsCallable(functions, 'addTrip');
+  const addTripFn = httpsCallable(functions, 'addTripToSheet');
   const response = await addTripFn({ trip: tripData });
   return response.data;
 };
