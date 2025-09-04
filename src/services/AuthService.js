@@ -1,68 +1,89 @@
 // src/services/AuthService.js
+// Complete AuthService using the Firebase v9 modular SDK.
+// This file exports a default object `AuthService` with the methods:
+// login(email, password), signup(email,password,displayName), logout(),
+// updateEmail(newEmail), updatePassword(newPassword), updateName(name),
+// deleteAccount(), onAuthStateChanged(callback)
+
 import { auth } from '../firebase';
 import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  onAuthStateChanged,
+  onAuthStateChanged as fbOnAuthStateChanged,
   updateEmail as fbUpdateEmail,
   updatePassword as fbUpdatePassword,
-  updateProfile,
-  deleteUser
+  updateProfile as fbUpdateProfile,
+  deleteUser as fbDeleteUser,
 } from 'firebase/auth';
 
 const AuthService = {
   // logs in an existing user
   login: async (email, password) => {
-    // returns a UserCredential
-    return await signInWithEmailAndPassword(auth, email, password);
+    if (!email || !password) throw new Error('Email and password are required for login.');
+    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    return userCredential.user;
   },
 
-  // modified signup to accept first and last name
-  signup: async (email, password, firstName, lastName) => {
+  // sign up a new user and optionally set displayName
+  signup: async (email, password, displayName = null) => {
+    if (!email || !password) throw new Error('Email and password are required for signup.');
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    await updateProfile(userCredential.user, {
-      displayName: `${firstName} ${lastName}`
-    });
-    return userCredential;
-  },
-
-  // logs out the currently-signed-in user
-  logout: async () => {
-    return await signOut(auth);
-  },
-
-  // updates display name
-  updateName: async (firstName, lastName) => {
-    if (!auth.currentUser) {
-      throw new Error("No user is currently logged in.");
+    if (displayName && userCredential.user) {
+      await fbUpdateProfile(userCredential.user, { displayName });
     }
-    await updateProfile(auth.currentUser, {
-      displayName: `${firstName} ${lastName}`
-    });
+    return userCredential.user;
   },
 
-  // updates email address
+  // logout current user
+  logout: async () => {
+    await signOut(auth);
+  },
+
+  // update the currently logged-in user's email
   updateEmail: async (newEmail) => {
-    if (!auth.currentUser) throw new Error("No user is currently logged in.");
+    if (!auth.currentUser) throw new Error('No user is currently logged in.');
+    if (!newEmail) throw new Error('A new email is required.');
     await fbUpdateEmail(auth.currentUser, newEmail);
+    // return updated user
+    return auth.currentUser;
   },
 
-  // updates password
+  // update the currently logged-in user's password
   updatePassword: async (newPassword) => {
-    if (!auth.currentUser) throw new Error("No user is currently logged in.");
+    if (!auth.currentUser) throw new Error('No user is currently logged in.');
+    if (!newPassword) throw new Error('A new password is required.');
     await fbUpdatePassword(auth.currentUser, newPassword);
+    return auth.currentUser;
   },
 
-  // deletes the current user account
+  // update displayName
+  updateName: async (name) => {
+    if (!auth.currentUser) throw new Error('No user is currently logged in.');
+    await fbUpdateProfile(auth.currentUser, { displayName: name });
+    return auth.currentUser;
+  },
+
+  // delete the current user account
   deleteAccount: async () => {
-    if (!auth.currentUser) throw new Error("No user is currently logged in.");
-    await deleteUser(auth.currentUser);
+    if (!auth.currentUser) throw new Error('No user is currently logged in.');
+    await fbDeleteUser(auth.currentUser);
   },
 
-  // listen for auth state changes
+  // listen for auth state changes; callback receives the firebase user (or null)
   onAuthStateChanged: (callback) => {
-    return onAuthStateChanged(auth, callback);
+    return fbOnAuthStateChanged(auth, (user) => {
+      // normalize user object if you want (uid, email, displayName)
+      if (!user) {
+        callback(null);
+      } else {
+        callback({
+          uid: user.uid,
+          email: user.email,
+          displayName: user.displayName || null,
+        });
+      }
+    });
   },
 };
 
