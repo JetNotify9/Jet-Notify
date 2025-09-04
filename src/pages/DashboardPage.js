@@ -5,7 +5,6 @@ import { fetchTripsAsObjects } from '../services/GoogleSheetsSyncService';
 import TripCard from '../components/TripCard';
 import AddItineraryForm from '../components/AddItineraryForm';
 
-
 const DashboardPage = () => {
   const { user } = useContext(AuthContext);
   const [trips, setTrips] = useState([]);
@@ -13,43 +12,71 @@ const DashboardPage = () => {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (user) {
+    // When a user is present, fetch their trips
+    let mounted = true;
+    const loadTrips = async () => {
+      if (!user || !user.email) {
+        setTrips([]);
+        return;
+      }
       setLoading(true);
-      fetchTripsAsObjects()
-        .then((tripData) => {
-          setTrips(tripData);
-          setLoading(false);
-        })
-        .catch((err) => {
-          console.error("Error loading trips:", err);
-          setLoading(false);
-        });
-    }    
+      setError(null);
+      try {
+        const fetched = await fetchTripsAsObjects(user.email);
+        if (mounted) {
+          // normalize: ensure array
+          setTrips(Array.isArray(fetched) ? fetched : []);
+        }
+      } catch (err) {
+        console.error('Error fetching trips:', err);
+        if (mounted) setError(err.message || 'Failed to fetch trips.');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    loadTrips();
+    // if user changes (login/logout), refetch
+    return () => { mounted = false; };
   }, [user]);
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Dashboard</h2>
-      {user ? (
-  <>
--   {error && <p style={{ color: 'red' }}>{error}</p>}
-+   {/* 1) Add-Itinerary form goes here */}
-+   <AddItineraryForm onNewTrips={setTrips} />
-+
-+   {/* 2) Any error message */}
-+   {error && <p style={{ color: 'red' }}>{error}</p>}
+    <div style={{ padding: 20 }}>
+      <h2>Your Trips</h2>
 
-    {/* 3) The list of trips */}
-    {trips.length > 0 ? (
-      trips.map(trip => <TripCard key={trip.confirmation} trip={trip} />)
-    ) : (
-      !loading && <p>No trips found.</p>
-    )}
-  </>
-) : (
-  <p>Please log in to see your dashboard.</p>
-)}
+      {!user ? (
+        <p>Please log in to see your dashboard.</p>
+      ) : (
+        <>
+          <AddItineraryForm
+            onNewTrips={() => {
+              // re-fetch after someone adds a trip
+              // simple approach: trigger effect by calling fetch again
+              (async () => {
+                try {
+                  setLoading(true);
+                  const fetched = await fetchTripsAsObjects(user.email);
+                  setTrips(Array.isArray(fetched) ? fetched : []);
+                } catch (err) {
+                  console.error(err);
+                  setError(err.message || 'Failed to refresh trips.');
+                } finally {
+                  setLoading(false);
+                }
+              })();
+            }}
+          />
 
+          {loading && <p>Loading trips…</p>}
+          {error && <p style={{ color: 'red' }}>Error: {error}</p>}
+
+          {!loading && trips && trips.length > 0 ? (
+            trips.map((trip) => <TripCard key={trip.confirmation || trip.id || JSON.stringify(trip)} trip={trip} />)
+          ) : (
+            !loading && <p>No trips found.</p>
+          )}
+        </>
+      )}
     </div>
   );
 };
