@@ -1,0 +1,13 @@
+{
+  "security": {
+    "owner_email": "JoshuaTSchwartz@gmail.com"
+  },
+  "sheets": {
+    "range": "Sheet1!A:AB",
+    "id": "1fNIVGMxZ6x99YMTQtRciKK-VKOa9O5UsMHl7iLJ3MK8",
+    "email_col": "4"
+  },
+  "google": {
+    "sheet_id": "1fNIVGMxZ6x99YMTQtRciKK-VKOa9O5UsMHl7iLJ3MK8"
+  }
+}
