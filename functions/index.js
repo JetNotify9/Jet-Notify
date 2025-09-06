@@ -18,7 +18,6 @@ exports.getTrips = onCall(
     region: 'us-central1',
     callableOptions: {
       // ensure the function will accept Firebase Auth ID tokens
-      allowUnauthenticated: true
     }
   },
   async (data, context) => {
