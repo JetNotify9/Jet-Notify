@@ -26,11 +26,12 @@ const AuthService = {
   },
 
   // sign up a new user and optionally set displayName
-  signup: async (email, password, displayName = null) => {
+  signup: async (email, password, firstName = null, lastName = null) => {
     if (!email || !password) throw new Error('Email and password are required for signup.');
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-    if (displayName && userCredential.user) {
-      await fbUpdateProfile(userCredential.user, { displayName });
+    const composed = [firstName, lastName].filter(Boolean).join(' ').trim() || (typeof firstName === 'string' ? firstName : null);
+    if (composed && userCredential.user) {
+      await fbUpdateProfile(userCredential.user, { displayName: composed });
     }
     return userCredential.user;
   },
@@ -43,24 +44,20 @@ const AuthService = {
   // update the currently logged-in user's email
   updateEmail: async (newEmail) => {
     if (!auth.currentUser) throw new Error('No user is currently logged in.');
-    if (!newEmail) throw new Error('A new email is required.');
     await fbUpdateEmail(auth.currentUser, newEmail);
-    // return updated user
-    return auth.currentUser;
   },
 
   // update the currently logged-in user's password
   updatePassword: async (newPassword) => {
     if (!auth.currentUser) throw new Error('No user is currently logged in.');
-    if (!newPassword) throw new Error('A new password is required.');
     await fbUpdatePassword(auth.currentUser, newPassword);
-    return auth.currentUser;
   },
 
-  // update displayName
-  updateName: async (name) => {
+  // update the currently logged-in user's displayName
+  updateName: async (firstName, lastName) => {
     if (!auth.currentUser) throw new Error('No user is currently logged in.');
-    await fbUpdateProfile(auth.currentUser, { displayName: name });
+    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
+    await fbUpdateProfile(auth.currentUser, { displayName: fullName });
     return auth.currentUser;
   },
 
@@ -73,7 +70,6 @@ const AuthService = {
   // listen for auth state changes; callback receives the firebase user (or null)
   onAuthStateChanged: (callback) => {
     return fbOnAuthStateChanged(auth, (user) => {
-      // normalize user object if you want (uid, email, displayName)
       if (!user) {
         callback(null);
       } else {
