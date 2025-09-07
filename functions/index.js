@@ -20,19 +20,21 @@ exports.getTrips = onCall(
       // ensure the function will accept Firebase Auth ID tokens
     }
   },
-  async (data, context) => {
-    if (!context.auth) {
+  async (request) => {
+    const { data, auth } = request;
+
+    if (!auth) {
       // Emulator/prod will surface this as UNAUTHENTICATED
       throw new functions.https.HttpsError('unauthenticated', 'Request not authenticated.');
     }
 
     const spreadsheetId = functions.config().google?.sheet_id;
-    const emailFromToken = context.auth.token?.email || null;
-    const isAdmin = context.auth.token?.admin === true;
+    const emailFromToken = auth.token?.email || null;
+    const isAdmin = auth.token?.admin === true;
     const emailFromData = data?.email || null;
 
     console.log('[getTrips] start', {
-      hasAuth: !!context.auth,
+      hasAuth: !!auth,
       emailFromToken,
       emailFromData,
       isAdmin,
