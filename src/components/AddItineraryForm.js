@@ -3,67 +3,59 @@ import React, { useState } from 'react';
 import { addTrip, fetchTripsAsObjects } from '../services/GoogleSheetsSyncService';
 
 const AddItineraryForm = ({ onNewTrips }) => {
-  // Adjust these to match your Sheet’s columns:
+  // Only need confirmation now; server derives identity from the auth token.
   const [confirmation, setConfirmation] = useState('');
-  const [destination, setDestination] = useState('');
-  const [dateRange, setDateRange] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    // Build the row in the same order as your sheet:
-    const newRow = [confirmation, destination, dateRange /*, other fields if any */];
+    setError(null);
+    setSubmitting(true);
 
     try {
-      // 1) Send to your callable function
-      await addTrip(newRow);
-      // 2) Re-fetch all trips and inform parent
-      const updated = await fetchTripsAsObjects();
-      onNewTrips(updated);
-      // 3) Clear the form
+      // Send only confirmation; the server will fill B/C/D from the user profile.
+      await addTrip({ confirmation });
+
+      // Optionally refresh trips for the current user (server filters by token).
+      if (typeof onNewTrips === 'function') {
+        const trips = await fetchTripsAsObjects(); // no email needed; token is used server-side
+        onNewTrips(trips);
+      }
+
       setConfirmation('');
-      setDestination('');
-      setDateRange('');
     } catch (err) {
-      alert('There was an error adding your itinerary. See the console for details.');
+      setError(err?.message || 'Failed to add trip');
+    } finally {
+      setSubmitting(false);
     }
   };
 
   return (
-    <form onSubmit={handleSubmit} style={{ marginBottom: '20px' }}>
-      <h3>Add New Itinerary</h3>
-
-      <div>
-        <label>Confirmation #: </label>
+    <form onSubmit={handleSubmit} style={{ marginTop: 16 }}>
+      <div style={{ marginBottom: 8 }}>
+        <label htmlFor="confirmation" style={{ display: 'block', fontWeight: 600 }}>
+          Confirmation
+        </label>
         <input
+          id="confirmation"
           type="text"
           value={confirmation}
-          onChange={e => setConfirmation(e.target.value)}
+          onChange={(e) => setConfirmation(e.target.value)}
+          placeholder="e.g. ABC123"
           required
         />
       </div>
 
-      <div>
-        <label>Destination: </label>
-        <input
-          type="text"
-          value={destination}
-          onChange={e => setDestination(e.target.value)}
-          required
-        />
-      </div>
+      <button type="submit" disabled={submitting}>
+        {submitting ? 'Adding…' : 'Add Itinerary'}
+      </button>
 
-      <div>
-        <label>Date Range: </label>
-        <input
-          type="text"
-          value={dateRange}
-          onChange={e => setDateRange(e.target.value)}
-          placeholder="e.g. 2025-08-01 to 2025-08-05"
-          required
-        />
-      </div>
-
-      <button type="submit">Add Itinerary</button>
+      {error && (
+        <p style={{ color: 'red', marginTop: 8 }}>
+          {error}
+        </p>
+      )}
     </form>
   );
 };

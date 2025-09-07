@@ -1,8 +1,4 @@
 // src/services/GoogleSheetsSyncService.js
-// Full replacement (drop-in). Uses httpsCallable to call `getTrips` and `addTrip`.
-// Ensures the Firebase client library includes the current user's ID token
-// so the callable function (which requires auth) accepts it.
-
 /* eslint-disable no-console */
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { app } from '../firebase';
@@ -12,40 +8,29 @@ import { aggregateTripData } from '../components/tripAggregator';
 const functions = getFunctions(app, 'us-central1');
 
 /**
- * Fetches trips for the signed-in user and returns objects the UI expects.
- * - Calls the getTrips callable (which returns raw sheet rows: arrays).
- * - Runs those rows through aggregateTripData() to build rich trip objects,
- *   including parsing complex array-like data stored inside single cells.
+ * Fetch trips for the signed-in user.
+ * Server returns raw rows; we aggregate to objects for the UI.
  */
 export const fetchTripsAsObjects = async (userEmail) => {
   const getTripsFn = httpsCallable(functions, 'getTrips');
-
-  // Pass email if the server (admin) flow needs it; server also checks auth token.
   const payload = userEmail ? { email: userEmail } : {};
-
   let data;
+
   try {
-    const response = await getTripsFn(payload);
-    data = response?.data;
+    const res = await getTripsFn(payload);
+    data = res?.data;
   } catch (err) {
     console.error('[getTrips] ERROR', { message: err?.message, stack: err?.stack });
     throw new Error(`Failed to fetch trips: ${err?.message || String(err)}`);
   }
 
-  // Accept either { trips: [...] } or a bare array, or { rows: [...] }.
   let rows = [];
-  if (Array.isArray(data?.trips)) {
-    rows = data.trips;
-  } else if (Array.isArray(data)) {
-    rows = data;
-  } else if (Array.isArray(data?.rows)) {
-    rows = data.rows;
-  }
+  if (Array.isArray(data?.trips)) rows = data.trips;
+  else if (Array.isArray(data)) rows = data;
+  else if (Array.isArray(data?.rows)) rows = data.rows;
 
-  // Run local aggregator so TripCard gets the rich objects it expects.
   try {
-    const trips = aggregateTripData(rows);
-    return trips;
+    return aggregateTripData(rows);
   } catch (e) {
     console.error('[fetchTripsAsObjects] aggregateTripData failed; returning raw rows', e?.message);
     return rows;
@@ -53,13 +38,10 @@ export const fetchTripsAsObjects = async (userEmail) => {
 };
 
 /**
- * Adds a trip via callable.
- * Minimal change: we now only send `confirmation`.
- * The server derives first/last/email from the verified user token, and ignores
- * any client-supplied destination/dateRange to prevent tampering.
+ * Add a trip.
+ * Minimal + safe: only send confirmation; server derives first/last/email from the ID token.
  */
 export const addTrip = async (tripData) => {
-  // Support both { confirmation } and { trip: { confirmation } } shapes
   const confirmation =
     tripData?.confirmation ??
     (tripData?.trip && tripData.trip.confirmation) ??
@@ -72,7 +54,6 @@ export const addTrip = async (tripData) => {
   const addTripFn = httpsCallable(functions, 'addTrip');
 
   try {
-    // Only send confirmation; identity comes from the server-side token
     const response = await addTripFn({ trip: { confirmation } });
     return response.data;
   } catch (err) {
