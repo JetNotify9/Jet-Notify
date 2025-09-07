@@ -1,17 +1,39 @@
 // functions/index.js
 
-// 1) Import the v2 onCall handler, so we can enable Firebase ID–token auth in Gen2
+// 1) Imports (Gen-2 callable)
 const { onCall } = require('firebase-functions/v2/https');
 const functions = require('firebase-functions');
 const { google } = require('googleapis');
 const sheets = google.sheets('v4');
+const { defineString } = require('firebase-functions/params');
+
+// 2) Parametrized config (Gen-2: replaces functions.config())
+const GOOGLE_SHEET_ID = defineString('GOOGLE_SHEET_ID');
+
+// Utility: extract first/last name from auth token safely (no client input)
+function extractNamesFromAuth(auth) {
+  const t = auth?.token || {};
+  // Prefer standard OIDC-style claims if present
+  let first = t.given_name || t.givenName || '';
+  let last = t.family_name || t.familyName || '';
+  if (!first && !last) {
+    // Fallback to display name
+    const name = t.name || '';
+    if (name) {
+      const parts = String(name).trim().split(/\s+/);
+      first = parts[0] || '';
+      last = parts.length > 1 ? parts.slice(1).join(' ') : '';
+    }
+  }
+  return { firstName: first, lastName: last };
+}
 
 /**
  * Callable: getTrips
- * - Requires auth (context.auth)
+ * - Requires auth (request.auth)
  * - Reads rows from Sheet1!A1:AB1000
  * - Filters by email in column D (row[3]); admins can pass data.email to view others
- * - Returns { trips: [...] }
+ * - Returns { trips: [...] } (raw rows; frontend aggregates to objects)
  */
 exports.getTrips = onCall(
   {
@@ -28,7 +50,9 @@ exports.getTrips = onCall(
       throw new functions.https.HttpsError('unauthenticated', 'Request not authenticated.');
     }
 
-    const spreadsheetId = functions.config().google?.sheet_id;
+    // Gen-2 parameter value
+    const spreadsheetId = GOOGLE_SHEET_ID.value();
+
     const emailFromToken = auth.token?.email || null;
     const isAdmin = auth.token?.admin === true;
     const emailFromData = data?.email || null;
@@ -42,7 +66,7 @@ exports.getTrips = onCall(
     });
 
     if (!spreadsheetId) {
-      console.error('[getTrips] missing functions.config().google.sheet_id');
+      console.error('[getTrips] missing GOOGLE_SHEET_ID parameter');
       throw new functions.https.HttpsError('internal', 'Server missing sheet configuration.');
     }
 
@@ -97,7 +121,13 @@ exports.getTrips = onCall(
 /**
  * Callable: addTrip
  * - Requires auth
- * - Appends a row to Sheet1 with: confirmation, "", "", userEmail, destination, start, end
+ * - Appends a row to Sheet1 with:
+ *   A: confirmation
+ *   B: first name (from user profile claims; server-derived)
+ *   C: last name  (from user profile claims; server-derived)
+ *   D: email      (from user profile claims; server-derived)
+ *   E/F/G: intentionally left blank (Destination + Date Range removed)
+ * - Ignores any client-supplied destination/dateRange to prevent tampering.
  */
 exports.addTrip = onCall(
   {
@@ -106,29 +136,37 @@ exports.addTrip = onCall(
       allowUnauthenticated: false
     }
   },
-  async (data, context) => {
-    if (!context.auth) {
+  async (request) => {
+    const { data, auth } = request;
+
+    if (!auth) {
       throw new functions.https.HttpsError('unauthenticated', 'Must be signed in to add trips.');
     }
 
-    const spreadsheetId = functions.config().google?.sheet_id;
+    const spreadsheetId = GOOGLE_SHEET_ID.value();
     if (!spreadsheetId) {
-      console.error('[addTrip] missing functions.config().google.sheet_id');
+      console.error('[addTrip] missing GOOGLE_SHEET_ID parameter');
       throw new functions.https.HttpsError('internal', 'Server missing sheet configuration.');
     }
 
-    const userEmail = context.auth.token?.email || '';
-    const { confirmation, destination, dateRange } = data || {};
+    // Identity strictly from verified token (cannot be tampered by client)
+    const userEmail = auth.token?.email || '';
+    const { firstName, lastName } = extractNamesFromAuth(auth);
+
+    // Accept only confirmation from client payload (ignore destination/dateRange)
+    // Support both { trip: { confirmation } } and { confirmation } shapes.
+    const body = (data && typeof data === 'object') ? (data.trip || data) : {};
+    const confirmation = body?.confirmation;
 
     console.log('[addTrip] start', {
       userEmail,
       hasConfirmation: !!confirmation,
-      hasDestination: !!destination,
-      dateRange,
+      firstNamePresent: !!firstName,
+      lastNamePresent: !!lastName,
     });
 
-    if (!confirmation || !destination || !dateRange) {
-      throw new functions.https.HttpsError('invalid-argument', 'Missing trip fields.');
+    if (!confirmation) {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing confirmation.');
     }
 
     try {
@@ -137,14 +175,9 @@ exports.addTrip = onCall(
       });
       google.options({ auth: authClient });
 
-      const newRow = [confirmation, '', '', userEmail, destination, '', ''];
-      if (typeof dateRange === 'string' && dateRange.includes('-')) {
-        const parts = dateRange.split('-').map((s) => s.trim());
-        newRow[5] = parts[0];
-        newRow[6] = parts[1] || '';
-      } else {
-        newRow[5] = dateRange;
-      }
+      // Row shape:
+      // [ A: confirmation, B: firstName, C: lastName, D: email, E: '', F: '', G: '' ]
+      const newRow = [confirmation, firstName || '', lastName || '', userEmail, '', '', ''];
 
       await sheets.spreadsheets.values.append({
         spreadsheetId,
