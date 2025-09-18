@@ -48,7 +48,14 @@ const AuthService = {
     if (!auth.currentUser) throw new Error('No user is currently logged in.');
     if (!newEmail) throw new Error('A new email is required.');
     try {
-      await fbVerifyBeforeUpdateEmail(auth.currentUser, newEmail);
+      // explicitly pass actionCodeSettings so Firebase will send the email
+      const actionCodeSettings = {
+        // your deployed URL or localhost for testing
+        url: window.location.origin + '/login',
+        // set to false unless you have an in-app handler
+        handleCodeInApp: false,
+      };
+      await fbVerifyBeforeUpdateEmail(auth.currentUser, newEmail, actionCodeSettings);
       // At this point a verification email has been sent. The change applies after the user clicks the link.
       return auth.currentUser;
     } catch (err) {
@@ -57,29 +64,42 @@ const AuthService = {
     }
   },
 
-  // update the currently logged-in user's password
+  // update the currently logged-in user's password.
   updatePassword: async (newPassword) => {
     if (!auth.currentUser) throw new Error('No user is currently logged in.');
     if (!newPassword) throw new Error('A new password is required.');
-    await fbUpdatePassword(auth.currentUser, newPassword);
-    return auth.currentUser;
+    try {
+      await fbUpdatePassword(auth.currentUser, newPassword);
+      return auth.currentUser;
+    } catch (err) {
+      throw err;
+    }
   },
 
-  // update displayName using first + last composition
+  // update display name
   updateName: async (firstName, lastName) => {
     if (!auth.currentUser) throw new Error('No user is currently logged in.');
-    const fullName = [firstName, lastName].filter(Boolean).join(' ').trim();
-    await fbUpdateProfile(auth.currentUser, { displayName: fullName });
-    return auth.currentUser;
+    const composed = [firstName, lastName].filter(Boolean).join(' ').trim();
+    if (!composed) throw new Error('At least one of firstName or lastName is required.');
+    try {
+      await fbUpdateProfile(auth.currentUser, { displayName: composed });
+      return auth.currentUser;
+    } catch (err) {
+      throw err;
+    }
   },
 
-  // delete the current user account
+  // delete the currently logged-in user
   deleteAccount: async () => {
     if (!auth.currentUser) throw new Error('No user is currently logged in.');
-    await fbDeleteUser(auth.currentUser);
+    try {
+      await fbDeleteUser(auth.currentUser);
+    } catch (err) {
+      throw err;
+    }
   },
 
-  // listen for auth state changes; callback receives the firebase user (or null)
+  // subscribe to auth state changes (login, logout, token refresh)
   onAuthStateChanged: (callback) => {
     return fbOnAuthStateChanged(auth, (user) => {
       if (!user) {
