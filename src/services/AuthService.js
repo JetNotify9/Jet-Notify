@@ -51,7 +51,7 @@ const AuthService = {
       // explicitly pass actionCodeSettings so Firebase will send the email
       const actionCodeSettings = {
         // your deployed URL or localhost for testing
-        url: window.location.origin + '/login',
+        url: `${window.location.origin}${process.env.JetNotify.com}#/login`,
         // set to false unless you have an in-app handler
         handleCodeInApp: false,
       };
